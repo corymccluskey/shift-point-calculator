@@ -53,11 +53,27 @@
   #chart {
     width: 100%; max-width: 100%; margin-top: 10px;
   }
+  .btn-row {
+    display: flex; gap: 10px; margin-bottom: 12px;
+  }
+  .btn {
+    padding: 6px 16px; border: 1px solid #ccc; border-radius: 4px;
+    background: #fff; font-size: 13px; font-family: inherit;
+    cursor: pointer; color: #333;
+  }
+  .btn:hover { background: #f0f0f0; border-color: #999; }
+  .btn:active { background: #e0e0e0; }
 </style>
 </head>
 <body>
 
 <h2>Transmission Shift Point Calculator</h2>
+
+<div class="btn-row">
+  <button id="save-btn" class="btn">Save Setup</button>
+  <button id="load-btn" class="btn">Load Setup</button>
+  <input type="file" id="file-input" accept=".json" hidden>
+</div>
 
 <h3>Vehicle Setup</h3>
 <div class="input-row">
@@ -527,6 +543,89 @@ shiftRpmEl.addEventListener('input', () => {
 });
 
 numGearsEl.addEventListener('input', rebuildGears);
+
+// ─── Save / Load setup ──────────────────────────────────────────
+const saveBtnEl  = $('save-btn');
+const loadBtnEl  = $('load-btn');
+const fileInputEl = $('file-input');
+
+function saveSetup() {
+  const obj = {
+    tire_dia:   parseFloat(tireDiaEl.value),
+    final_drive: parseFloat(finalDriveEl.value),
+    max_rpm:    parseInt(maxRpmEl.value),
+    hwy_speed:  parseFloat(hwySpeedEl.value),
+    num_gears:  parseInt(numGearsEl.value),
+    pb_min:     parseInt(pbMinEl.value),
+    pb_max:     parseInt(pbMaxEl.value),
+    max_speed:  parseFloat(maxSpeedEl.value),
+    shift_rpm:  parseInt(shiftRpmEl.value),
+    gear_ratios: readGearValues()
+  };
+  const name = prompt('Setup name:', 'shift-points-setup');
+  if (name == null) return;               // user cancelled
+  obj.name = name;
+  const json = JSON.stringify(obj, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (name || 'shift-points-setup') + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function loadSetup(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const obj = JSON.parse(e.target.result);
+
+      // Set scalar inputs
+      if (obj.tire_dia   != null) tireDiaEl.value   = obj.tire_dia;
+      if (obj.final_drive != null) finalDriveEl.value = obj.final_drive;
+      if (obj.max_rpm    != null) maxRpmEl.value     = obj.max_rpm;
+      if (obj.hwy_speed  != null) hwySpeedEl.value   = obj.hwy_speed;
+      if (obj.pb_min     != null) pbMinEl.value      = obj.pb_min;
+      if (obj.pb_max     != null) pbMaxEl.value      = obj.pb_max;
+      if (obj.max_speed  != null) maxSpeedEl.value   = obj.max_speed;
+
+      // Rebuild gear inputs to match saved count
+      if (obj.num_gears != null) numGearsEl.value = obj.num_gears;
+      rebuildGears();
+
+      // Overwrite gear ratio values from file
+      if (Array.isArray(obj.gear_ratios)) {
+        obj.gear_ratios.forEach((v, i) => {
+          if (i < gearEls.length) gearEls[i].value = v;
+        });
+      }
+
+      // Sync slider range then set shift RPM
+      syncSliderMax();
+      if (obj.shift_rpm != null) {
+        shiftRpmEl.value = Math.min(obj.shift_rpm, parseInt(shiftRpmEl.max));
+        shiftLabel.textContent = shiftRpmEl.value + ' RPM';
+      }
+
+      update();
+    } catch (err) {
+      alert('Could not load file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+saveBtnEl.addEventListener('click', saveSetup);
+loadBtnEl.addEventListener('click', () => fileInputEl.click());
+fileInputEl.addEventListener('change', (e) => {
+  if (e.target.files.length) {
+    loadSetup(e.target.files[0]);
+    fileInputEl.value = '';
+  }
+});
 
 // ─── Initial render ─────────────────────────────────────────────
 rebuildGears();
