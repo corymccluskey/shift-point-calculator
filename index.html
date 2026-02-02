@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transmission Shift Point Calculator</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0; padding: 16px;
+    background: #fafafa; color: #333;
+  }
+  h2 { margin: 0 0 12px; font-size: 20px; }
+  h3 { margin: 14px 0 6px; font-size: 15px; color: #555; }
+  .input-row {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 6px;
+  }
+  .input-group {
+    display: flex; flex-direction: column; min-width: 140px;
+  }
+  .input-group label {
+    font-size: 12px; font-weight: 600; color: #666; margin-bottom: 2px;
+  }
+  .input-group input[type="number"] {
+    width: 130px; padding: 5px 6px; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 13px; font-family: inherit;
+  }
+  .input-group input[type="number"]:focus {
+    outline: none; border-color: #1976d2; box-shadow: 0 0 0 2px rgba(25,118,210,0.15);
+  }
+  .slider-row {
+    display: flex; align-items: center; gap: 12px; margin: 4px 0 10px;
+  }
+  .slider-row input[type="range"] {
+    flex: 1; min-width: 200px; cursor: pointer;
+  }
+  .slider-row .slider-label {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px; font-weight: 700; min-width: 80px;
+  }
+  #gear-inputs {
+    display: flex; flex-wrap: wrap; gap: 10px;
+  }
+  .info-panel {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px; padding: 8px; border-radius: 4px; margin-top: 4px;
+  }
+  #ratio-out  { background: #f8f8f8; }
+  #hwy-out    { background: #e3f2fd; }
+  #max-spd-out{ background: #ffebee; }
+  #chart {
+    width: 100%; max-width: 100%; margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<h2>Transmission Shift Point Calculator</h2>
+
+<h3>Vehicle Setup</h3>
+<div class="input-row">
+  <div class="input-group">
+    <label>Tire Dia (in)</label>
+    <input type="number" id="tire_dia" value="35.0" step="0.5">
+  </div>
+  <div class="input-group">
+    <label>Final Drive</label>
+    <input type="number" id="final_drive" value="4.56" step="0.01">
+  </div>
+  <div class="input-group">
+    <label>Max RPM</label>
+    <input type="number" id="max_rpm" value="5500" step="100">
+  </div>
+  <div class="input-group">
+    <label>Hwy Speed (mph)</label>
+    <input type="number" id="hwy_speed" value="70" step="1">
+  </div>
+  <div class="input-group">
+    <label># Gears</label>
+    <input type="number" id="num_gears" value="5" step="1" min="2" max="10">
+  </div>
+</div>
+<div class="input-row">
+  <div class="input-group">
+    <label>PB Min RPM</label>
+    <input type="number" id="pb_min" value="2500" step="100">
+  </div>
+  <div class="input-group">
+    <label>PB Max RPM</label>
+    <input type="number" id="pb_max" value="4500" step="100">
+  </div>
+  <div class="input-group">
+    <label>Max Speed (mph)</label>
+    <input type="number" id="max_speed" value="0" step="1">
+  </div>
+</div>
+
+<h3>Gear Ratios</h3>
+<div id="gear-inputs"></div>
+
+<h3>Shift Point</h3>
+<div class="slider-row">
+  <input type="range" id="shift_rpm" min="1500" max="5500" step="100" value="3500">
+  <span class="slider-label" id="shift-rpm-label">3500 RPM</span>
+</div>
+
+<div id="ratio-out" class="info-panel"></div>
+<div id="hwy-out" class="info-panel"></div>
+<div id="max-spd-out" class="info-panel"></div>
+
+<div id="chart"></div>
+
+<script>
+// ─── Constants & defaults ───────────────────────────────────────
+const MIN_RPM = 1000;
+const DEFAULTS = [3.72, 2.20, 1.50, 1.00, 0.79, 0.63, 0.51, 0.42, 0.35, 0.29];
+const BAND_COLORS = ['#c8e6c9', '#fff9c4', '#bbdefb', '#f8bbd0', '#e1bee7',
+                     '#c8e6c9', '#fff9c4', '#bbdefb', '#f8bbd0', '#e1bee7'];
+
+// ─── DOM refs ───────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const tireDiaEl    = $('tire_dia');
+const finalDriveEl = $('final_drive');
+const maxRpmEl     = $('max_rpm');
+const hwySpeedEl   = $('hwy_speed');
+const numGearsEl   = $('num_gears');
+const pbMinEl      = $('pb_min');
+const pbMaxEl      = $('pb_max');
+const maxSpeedEl   = $('max_speed');
+const shiftRpmEl   = $('shift_rpm');
+const shiftLabel   = $('shift-rpm-label');
+const gearInputsEl = $('gear-inputs');
+const ratioOutEl   = $('ratio-out');
+const hwyOutEl     = $('hwy-out');
+const maxSpdOutEl  = $('max-spd-out');
+const chartEl      = $('chart');
+
+// ─── Math ───────────────────────────────────────────────────────
+function speedFromRpm(rpm, gearRatio, finalDrive, tireDia) {
+  return rpm * Math.PI * tireDia / (gearRatio * finalDrive * 1056);
+}
+
+function rpmFromSpeed(speed, gearRatio, finalDrive, tireDia) {
+  return speed * gearRatio * finalDrive * 1056 / (Math.PI * tireDia);
+}
+
+function linspace(start, end, n) {
+  if (n <= 1) return [start];
+  const step = (end - start) / (n - 1);
+  return Array.from({length: n}, (_, i) => start + step * i);
+}
+
+function calculateShiftLine(gearRatios, finalDrive, tireDia, shiftRpm, maxRpm, maxSpeed) {
+  const segments = [];
+  const shiftPoints = [];
+  let currentStartRpm = MIN_RPM;
+
+  for (let i = 0; i < gearRatios.length; i++) {
+    const ratio = gearRatios[i];
+    const isLast = i === gearRatios.length - 1;
+    let endRpm = isLast ? maxRpm : Math.min(shiftRpm, maxRpm);
+
+    if (isLast && maxSpeed > 0) {
+      const rpmAtLimit = rpmFromSpeed(maxSpeed, ratio, finalDrive, tireDia);
+      endRpm = Math.min(endRpm, rpmAtLimit);
+    }
+
+    if (currentStartRpm < endRpm) {
+      const rpms = linspace(currentStartRpm, endRpm, 100);
+      const speeds = rpms.map(r => speedFromRpm(r, ratio, finalDrive, tireDia));
+      segments.push({ speeds, rpms, gearIndex: i });
+    }
+
+    if (!isLast && shiftRpm <= maxRpm) {
+      const speedAtShift = speedFromRpm(shiftRpm, ratio, finalDrive, tireDia);
+      const nextRatio = gearRatios[i + 1];
+      const rpmAfter = shiftRpm * nextRatio / ratio;
+      shiftPoints.push({
+        speed: speedAtShift,
+        rpmHi: shiftRpm,
+        rpmLo: rpmAfter,
+        gearFrom: i + 1,
+        gearTo: i + 2
+      });
+      currentStartRpm = rpmAfter;
+    }
+  }
+  return { segments, shiftPoints };
+}
+
+// ─── Gear input management ──────────────────────────────────────
+let gearEls = [];
+
+function readGearValues() {
+  return gearEls.map(el => parseFloat(el.value) || 0);
+}
+
+function rebuildGears() {
+  const n = Math.max(2, Math.min(10, parseInt(numGearsEl.value) || 5));
+  const old = readGearValues();
+  gearInputsEl.innerHTML = '';
+  gearEls = [];
+
+  for (let i = 0; i < n; i++) {
+    let val;
+    if (i < old.length && old[i] > 0) val = old[i];
+    else if (i < DEFAULTS.length) val = DEFAULTS[i];
+    else val = (DEFAULTS[DEFAULTS.length - 1] * Math.pow(0.8, i - DEFAULTS.length + 1));
+
+    const grp = document.createElement('div');
+    grp.className = 'input-group';
+    const lbl = document.createElement('label');
+    lbl.textContent = `Gear ${i + 1}`;
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.step = '0.01';
+    inp.value = parseFloat(val.toFixed(4));
+    inp.style.width = '100px';
+    inp.addEventListener('input', update);
+    grp.appendChild(lbl);
+    grp.appendChild(inp);
+    gearInputsEl.appendChild(grp);
+    gearEls.push(inp);
+  }
+  update();
+}
+
+// ─── Sync slider max to max RPM ────────────────────────────────
+function syncSliderMax() {
+  const mr = parseInt(maxRpmEl.value) || 5500;
+  const newMax = Math.max(mr, parseInt(shiftRpmEl.min) + parseInt(shiftRpmEl.step));
+  shiftRpmEl.max = newMax;
+  if (parseInt(shiftRpmEl.value) > newMax) {
+    shiftRpmEl.value = newMax;
+  }
+  shiftLabel.textContent = shiftRpmEl.value + ' RPM';
+}
+
+// ─── Main update ────────────────────────────────────────────────
+function update() {
+  const gearRatios = readGearValues();
+  const fd = parseFloat(finalDriveEl.value) || 0;
+  const td = parseFloat(tireDiaEl.value) || 0;
+  const mr = parseInt(maxRpmEl.value) || 0;
+  const sr = parseInt(shiftRpmEl.value) || 0;
+  const hwySpeed = parseFloat(hwySpeedEl.value) || 0;
+  const pbMin = parseInt(pbMinEl.value) || 0;
+  const pbMax = parseInt(pbMaxEl.value) || 0;
+  const maxSpeed = parseFloat(maxSpeedEl.value) || 0;
+
+  shiftLabel.textContent = sr + ' RPM';
+
+  if (!gearRatios.length || gearRatios.some(r => r <= 0) || fd <= 0 || td <= 0 || mr <= 0) {
+    return;
+  }
+
+  // ── Info panels ──
+  const ratioSteps = [];
+  for (let i = 0; i < gearRatios.length - 1; i++) {
+    ratioSteps.push(`${i+1}\u2192${i+2}: ${(gearRatios[i] / gearRatios[i+1]).toFixed(3)}`);
+  }
+  ratioOutEl.innerHTML = `<b>Ratio Steps:</b> ${ratioSteps.join(' \u2502 ')}`;
+
+  const hwyRpm = rpmFromSpeed(hwySpeed, gearRatios[gearRatios.length - 1], fd, td);
+  hwyOutEl.innerHTML = `<b>Highway RPM:</b> ${hwySpeed.toFixed(0)} mph in top gear = <b>${hwyRpm.toFixed(0)} RPM</b>`;
+
+  const { segments, shiftPoints } = calculateShiftLine(gearRatios, fd, td, sr, mr, maxSpeed);
+
+  if (segments.length) {
+    const topSpeed = segments[segments.length - 1].speeds[segments[segments.length - 1].speeds.length - 1];
+    const limitText = maxSpeed > 0 ? ' (limited)' : '';
+    maxSpdOutEl.innerHTML = `<b>Top Speed:</b> ${topSpeed.toFixed(1)} mph${limitText}`;
+  } else {
+    maxSpdOutEl.innerHTML = '';
+  }
+
+  // ── Build Plotly traces ──
+  const traces = [];
+  const shapes = [];
+  const annotations = [];
+
+  // Determine x-axis max
+  let xMax = 100;
+  if (segments.length) {
+    const lastSeg = segments[segments.length - 1];
+    xMax = lastSeg.speeds[lastSeg.speeds.length - 1] * 1.05;
+  }
+
+  // Gear band shading + labels
+  for (const seg of segments) {
+    const sMin = seg.speeds[0];
+    const sMax = seg.speeds[seg.speeds.length - 1];
+    shapes.push({
+      type: 'rect',
+      x0: sMin, x1: sMax, y0: 0, y1: 1,
+      xref: 'x', yref: 'paper',
+      fillcolor: BAND_COLORS[seg.gearIndex % BAND_COLORS.length],
+      opacity: 0.15, layer: 'below', line: { width: 0 }
+    });
+    annotations.push({
+      x: (sMin + sMax) / 2,
+      y: mr * 1.05,
+      text: `Gear ${seg.gearIndex + 1}`,
+      showarrow: false,
+      font: { size: 11, color: '#666', weight: 'bold' },
+      opacity: 0.7
+    });
+  }
+
+  // Shift line segments with power band coloring (grouped runs)
+  for (const seg of segments) {
+    let currentColor = null;
+    let runX = [];
+    let runY = [];
+
+    for (let j = 0; j < seg.speeds.length - 1; j++) {
+      const midRpm = (seg.rpms[j] + seg.rpms[j + 1]) / 2;
+      const color = (pbMin <= midRpm && midRpm <= pbMax) ? '#388e3c' : '#f57c00';
+
+      if (color !== currentColor && runX.length > 0) {
+        traces.push({
+          x: runX.slice(), y: runY.slice(),
+          mode: 'lines', type: 'scatter',
+          line: { color: currentColor, width: 3 },
+          showlegend: false, hoverinfo: 'x+y'
+        });
+        runX = [seg.speeds[j]];
+        runY = [seg.rpms[j]];
+      }
+      if (runX.length === 0) {
+        runX.push(seg.speeds[j]);
+        runY.push(seg.rpms[j]);
+      }
+      runX.push(seg.speeds[j + 1]);
+      runY.push(seg.rpms[j + 1]);
+      currentColor = color;
+    }
+    if (runX.length > 0) {
+      traces.push({
+        x: runX, y: runY,
+        mode: 'lines', type: 'scatter',
+        line: { color: currentColor, width: 3 },
+        showlegend: false, hoverinfo: 'x+y'
+      });
+    }
+  }
+
+  // Power band range dotted lines per gear
+  for (let i = 0; i < gearRatios.length; i++) {
+    const ratio = gearRatios[i];
+    const pbLo = Math.max(pbMin, MIN_RPM);
+    const pbHi = Math.min(pbMax, mr);
+    if (pbLo >= pbHi) continue;
+    const spdLo = speedFromRpm(pbLo, ratio, fd, td);
+    const spdHi = speedFromRpm(pbHi, ratio, fd, td);
+    traces.push({
+      x: [spdLo, spdHi], y: [pbLo, pbHi],
+      mode: 'lines', type: 'scatter',
+      line: { color: '#388e3c', width: 1.5, dash: 'dot' },
+      opacity: 0.5, showlegend: false, hoverinfo: 'skip'
+    });
+    annotations.push({
+      x: spdLo, y: pbLo,
+      text: `${spdLo.toFixed(0)}`,
+      showarrow: false,
+      font: { size: 9, color: '#2e7d32' },
+      opacity: 0.85, yanchor: 'top', xanchor: 'center'
+    });
+    annotations.push({
+      x: spdHi, y: pbHi,
+      text: `${spdHi.toFixed(0)}`,
+      showarrow: false,
+      font: { size: 9, color: '#2e7d32' },
+      opacity: 0.85, yanchor: 'bottom', xanchor: 'center'
+    });
+  }
+
+  // Shift point drop lines + markers + annotations
+  const dropX = [], dropY = [];
+  const filledX = [], filledY = [];
+  const hollowX = [], hollowY = [];
+
+  for (const sp of shiftPoints) {
+    dropX.push(sp.speed, sp.speed, null);
+    dropY.push(sp.rpmHi, sp.rpmLo, null);
+    filledX.push(sp.speed);
+    filledY.push(sp.rpmHi);
+    hollowX.push(sp.speed);
+    hollowY.push(sp.rpmLo);
+
+    const mid = (sp.rpmHi + sp.rpmLo) / 2;
+    annotations.push({
+      x: sp.speed, y: mid,
+      text: `${sp.gearFrom}\u2192${sp.gearTo}: ${sp.speed.toFixed(1)} mph<br>(drops to ${sp.rpmLo.toFixed(0)} RPM)`,
+      showarrow: true,
+      arrowhead: 2, arrowcolor: '#9e9e9e', arrowwidth: 1,
+      ax: 14, ay: 0,
+      font: { size: 10 },
+      bgcolor: '#fff8e1', bordercolor: '#bcaaa4', borderpad: 3,
+      opacity: 0.9, xanchor: 'left'
+    });
+  }
+
+  if (dropX.length) {
+    traces.push({
+      x: dropX, y: dropY,
+      mode: 'lines', type: 'scatter',
+      line: { color: '#757575', width: 1.5, dash: 'dash' },
+      opacity: 0.7, showlegend: false, hoverinfo: 'skip'
+    });
+    traces.push({
+      x: filledX, y: filledY,
+      mode: 'markers', type: 'scatter',
+      marker: { color: 'black', size: 8 },
+      showlegend: false, hoverinfo: 'skip'
+    });
+    traces.push({
+      x: hollowX, y: hollowY,
+      mode: 'markers', type: 'scatter',
+      marker: { color: 'white', size: 8, line: { color: 'black', width: 2 } },
+      showlegend: false, hoverinfo: 'skip'
+    });
+  }
+
+  // Highway speed indicator
+  if (hwySpeed > 0) {
+    shapes.push({
+      type: 'line',
+      x0: hwySpeed, x1: hwySpeed, y0: 0, y1: 1,
+      xref: 'x', yref: 'paper',
+      line: { color: '#1565c0', width: 1.5, dash: 'dashdot' },
+      opacity: 0.6
+    });
+    traces.push({
+      x: [hwySpeed], y: [hwyRpm],
+      mode: 'markers', type: 'scatter',
+      marker: { color: '#1565c0', size: 9, symbol: 'square' },
+      showlegend: false, hoverinfo: 'text',
+      text: [`${hwySpeed.toFixed(0)} mph / ${hwyRpm.toFixed(0)} RPM`]
+    });
+    annotations.push({
+      x: hwySpeed, y: hwyRpm,
+      text: `${hwySpeed.toFixed(0)} mph<br>${hwyRpm.toFixed(0)} RPM`,
+      showarrow: false,
+      font: { size: 11, color: '#1565c0', weight: 'bold' },
+      bgcolor: '#e3f2fd', bordercolor: '#1565c0', borderpad: 3,
+      opacity: 0.9, xanchor: 'right', xshift: -14, yshift: 12
+    });
+  }
+
+  // Max speed indicator
+  if (segments.length) {
+    const topSpd = segments[segments.length - 1].speeds[segments[segments.length - 1].speeds.length - 1];
+    shapes.push({
+      type: 'line',
+      x0: topSpd, x1: topSpd, y0: 0, y1: 1,
+      xref: 'x', yref: 'paper',
+      line: { color: '#d32f2f', width: 1.5, dash: 'dot' },
+      opacity: 0.6
+    });
+    annotations.push({
+      x: topSpd, y: mr * 0.5,
+      text: `Top: ${topSpd.toFixed(0)} mph`,
+      showarrow: false,
+      font: { size: 12, color: '#d32f2f', weight: 'bold' },
+      xanchor: 'right', xshift: -12
+    });
+  }
+
+  // Legend dummy traces
+  traces.push({
+    x: [null], y: [null], mode: 'lines', type: 'scatter',
+    line: { color: '#388e3c', width: 3 },
+    name: `Power band (${pbMin}\u2013${pbMax} RPM)`, showlegend: true
+  });
+  traces.push({
+    x: [null], y: [null], mode: 'lines', type: 'scatter',
+    line: { color: '#388e3c', width: 1.5, dash: 'dot' },
+    name: 'Power band range per gear', showlegend: true
+  });
+  traces.push({
+    x: [null], y: [null], mode: 'lines', type: 'scatter',
+    line: { color: '#f57c00', width: 3 },
+    name: 'Outside power band', showlegend: true
+  });
+  traces.push({
+    x: [null], y: [null], mode: 'lines', type: 'scatter',
+    line: { color: '#757575', width: 1.5, dash: 'dash' },
+    name: 'RPM drop at shift', showlegend: true
+  });
+  traces.push({
+    x: [null], y: [null], mode: 'lines', type: 'scatter',
+    line: { color: '#1565c0', width: 1.5, dash: 'dashdot' },
+    name: 'Highway cruise', showlegend: true
+  });
+
+  // Layout
+  const layout = {
+    xaxis: { title: 'Speed (mph)', range: [0, xMax], gridcolor: '#eee' },
+    yaxis: { title: 'Engine RPM', range: [0, mr * 1.12], gridcolor: '#eee' },
+    title: { text: `${gearRatios.length}-Speed Transmission Shift Points`, font: { size: 16 } },
+    showlegend: true,
+    legend: { x: 0.01, y: 0.99, bgcolor: 'rgba(255,255,255,0.9)', font: { size: 11 } },
+    shapes: shapes,
+    annotations: annotations,
+    margin: { t: 60, r: 20, b: 50, l: 60 },
+    hovermode: 'closest',
+    plot_bgcolor: '#fff',
+    paper_bgcolor: '#fafafa'
+  };
+
+  Plotly.react(chartEl, traces, layout, { responsive: true });
+}
+
+// ─── Event wiring ───────────────────────────────────────────────
+[tireDiaEl, finalDriveEl, maxRpmEl, hwySpeedEl, pbMinEl, pbMaxEl, maxSpeedEl].forEach(el => {
+  el.addEventListener('input', update);
+});
+
+maxRpmEl.addEventListener('input', syncSliderMax);
+
+shiftRpmEl.addEventListener('input', () => {
+  shiftLabel.textContent = shiftRpmEl.value + ' RPM';
+  update();
+});
+
+numGearsEl.addEventListener('input', rebuildGears);
+
+// ─── Initial render ─────────────────────────────────────────────
+rebuildGears();
+</script>
+</body>
+</html>
