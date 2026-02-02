@@ -53,27 +53,27 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INPUT-01 | TBD | Pending |
-| INPUT-02 | TBD | Pending |
-| INPUT-03 | TBD | Pending |
-| INPUT-04 | TBD | Pending |
-| INPUT-05 | TBD | Pending |
-| INPUT-06 | TBD | Pending |
-| GRAPH-01 | TBD | Pending |
-| GRAPH-02 | TBD | Pending |
-| GRAPH-03 | TBD | Pending |
-| GRAPH-04 | TBD | Pending |
-| GRAPH-05 | TBD | Pending |
-| GRAPH-06 | TBD | Pending |
-| GRAPH-07 | TBD | Pending |
-| GRAPH-08 | TBD | Pending |
-| INFO-01 | TBD | Pending |
+| INPUT-01 | Phase 1 | Pending |
+| INPUT-02 | Phase 1 | Pending |
+| INPUT-03 | Phase 1 | Pending |
+| INPUT-04 | Phase 1 | Pending |
+| INPUT-05 | Phase 1 | Pending |
+| INPUT-06 | Phase 1 | Pending |
+| GRAPH-01 | Phase 1 | Pending |
+| GRAPH-02 | Phase 1 | Pending |
+| GRAPH-03 | Phase 1 | Pending |
+| GRAPH-04 | Phase 2 | Pending |
+| GRAPH-05 | Phase 2 | Pending |
+| GRAPH-06 | Phase 2 | Pending |
+| GRAPH-07 | Phase 3 | Pending |
+| GRAPH-08 | Phase 3 | Pending |
+| INFO-01 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-02*
-*Last updated: 2026-02-02 after initial definition*
+*Last updated: 2026-02-02 after roadmap creation*
