@@ -7,27 +7,27 @@
 
 ### Inputs
 
-- [ ] **INPUT-01**: User can set tire diameter in inches via widget (default: 35)
-- [ ] **INPUT-02**: User can set 5 gear ratios via widgets (defaults: 3.72, 2.20, 1.50, 1.00, 0.79)
-- [ ] **INPUT-03**: User can set final drive ratio via widget (default: 4.56)
-- [ ] **INPUT-04**: User can set engine max RPM via widget (default: 5500)
-- [ ] **INPUT-05**: User can adjust shift RPM via slider (single value for all gears)
-- [ ] **INPUT-06**: All widgets pre-loaded with spreadsheet defaults on first run
+- [x] **INPUT-01**: User can set tire diameter in inches via widget (default: 35)
+- [x] **INPUT-02**: User can set 5 gear ratios via widgets (defaults: 3.72, 2.20, 1.50, 1.00, 0.79)
+- [x] **INPUT-03**: User can set final drive ratio via widget (default: 4.56)
+- [x] **INPUT-04**: User can set engine max RPM via widget (default: 5500)
+- [x] **INPUT-05**: User can adjust shift RPM via slider (single value for all gears)
+- [x] **INPUT-06**: All widgets pre-loaded with spreadsheet defaults on first run
 
 ### Graph
 
-- [ ] **GRAPH-01**: Graph displays speed (mph) on X-axis and RPM on Y-axis
-- [ ] **GRAPH-02**: Connected shift line climbs through each gear and drops vertically at each upshift
-- [ ] **GRAPH-03**: Graph updates in real time when any widget value changes
-- [ ] **GRAPH-04**: Annotated shift speeds show text labels at each shift point (e.g., "1-2: 28 mph")
-- [ ] **GRAPH-05**: Shift point markers visually indicate each gear transition
-- [ ] **GRAPH-06**: Max speed indicator shows top speed at max RPM in top gear
-- [ ] **GRAPH-07**: Gear band highlighting shows shaded speed regions per gear
-- [ ] **GRAPH-08**: RPM band coloring shows green/yellow/red line segments based on RPM
+- [x] **GRAPH-01**: Graph displays speed (mph) on X-axis and RPM on Y-axis
+- [x] **GRAPH-02**: Connected shift line climbs through each gear and drops vertically at each upshift
+- [x] **GRAPH-03**: Graph updates in real time when any widget value changes
+- [x] **GRAPH-04**: Annotated shift speeds show text labels at each shift point (e.g., "1-2: 28 mph")
+- [x] **GRAPH-05**: Shift point markers visually indicate each gear transition
+- [x] **GRAPH-06**: Max speed indicator shows top speed at max RPM in top gear
+- [x] **GRAPH-07**: Gear band highlighting shows shaded speed regions per gear
+- [x] **GRAPH-08**: RPM band coloring shows green/yellow/red line segments based on RPM
 
 ### Info Display
 
-- [ ] **INFO-01**: Ratio step display shows ratio between consecutive gears (e.g., 1st/2nd = 1.69)
+- [x] **INFO-01**: Ratio step display shows ratio between consecutive gears (e.g., 1st/2nd = 1.69)
 
 ## v2 Requirements
 
@@ -53,21 +53,21 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INPUT-01 | Phase 1 | Pending |
-| INPUT-02 | Phase 1 | Pending |
-| INPUT-03 | Phase 1 | Pending |
-| INPUT-04 | Phase 1 | Pending |
-| INPUT-05 | Phase 1 | Pending |
-| INPUT-06 | Phase 1 | Pending |
-| GRAPH-01 | Phase 1 | Pending |
-| GRAPH-02 | Phase 1 | Pending |
-| GRAPH-03 | Phase 1 | Pending |
-| GRAPH-04 | Phase 2 | Pending |
-| GRAPH-05 | Phase 2 | Pending |
-| GRAPH-06 | Phase 2 | Pending |
-| GRAPH-07 | Phase 3 | Pending |
-| GRAPH-08 | Phase 3 | Pending |
-| INFO-01 | Phase 3 | Pending |
+| INPUT-01 | Phase 1 | Complete |
+| INPUT-02 | Phase 1 | Complete |
+| INPUT-03 | Phase 1 | Complete |
+| INPUT-04 | Phase 1 | Complete |
+| INPUT-05 | Phase 1 | Complete |
+| INPUT-06 | Phase 1 | Complete |
+| GRAPH-01 | Phase 1 | Complete |
+| GRAPH-02 | Phase 1 | Complete |
+| GRAPH-03 | Phase 1 | Complete |
+| GRAPH-04 | Phase 2 | Complete |
+| GRAPH-05 | Phase 2 | Complete |
+| GRAPH-06 | Phase 2 | Complete |
+| GRAPH-07 | Phase 3 | Complete |
+| GRAPH-08 | Phase 3 | Complete |
+| INFO-01 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 15 total
@@ -76,4 +76,4 @@
 
 ---
 *Requirements defined: 2026-02-02*
-*Last updated: 2026-02-02 after roadmap creation*
+*Last updated: 2026-02-02 after all phases complete*
